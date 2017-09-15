@@ -16,6 +16,7 @@
 package com.example.android.mediacontroller;
 
 import android.app.Activity;
+import android.app.NotificationManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -24,13 +25,17 @@ import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.media.RingtoneManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.RemoteException;
+import android.service.notification.StatusBarNotification;
 import android.support.annotation.Nullable;
 import android.support.annotation.StringRes;
 import android.support.design.widget.Snackbar;
 import android.support.design.widget.TabLayout;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaBrowserServiceCompat;
 import android.support.v4.media.MediaMetadataCompat;
@@ -472,6 +477,8 @@ public class MediaAppControllerActivity extends AppCompatActivity {
 
     private class MyConnectionCallback extends MediaBrowserCompat.ConnectionCallback {
 
+        private long mLastActions = 0L;
+
         @Override
         public void onConnected() {
             try {
@@ -483,6 +490,34 @@ public class MediaAppControllerActivity extends AppCompatActivity {
                     @Override
                     public void onPlaybackStateChanged(PlaybackStateCompat playbackState) {
                         onUpdate();
+                        long actions = playbackState.getActions();
+                        int mNotificationId = 001;
+                        NotificationManager notificationManager =
+                                (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                        boolean updateExisting = false;
+                        if (mLastActions != actions) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                StatusBarNotification[] notifications
+                                        = notificationManager.getActiveNotifications();
+                                for (StatusBarNotification n : notifications) {
+                                    if (n.getId() == mNotificationId) {
+                                        updateExisting = true;
+                                    }
+                                }
+                            }
+                        }
+                        if (updateExisting || actions == 0) {
+                            Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                            NotificationCompat.Builder mBuilder =
+                                    new NotificationCompat.Builder(MediaAppControllerActivity.this)
+                                            .setSmallIcon(R.drawable.dark_circle_background)
+                                            .setPriority(NotificationCompat.PRIORITY_MAX)
+                                            .setSound(alarmSound)
+                                            .setContentTitle("Actions: " + actions)
+                                            .setContentText("Previous: " + mLastActions);
+                            notificationManager.notify(mNotificationId, mBuilder.build());
+                        }
+                        mLastActions = actions;
                     }
 
                     @Override
