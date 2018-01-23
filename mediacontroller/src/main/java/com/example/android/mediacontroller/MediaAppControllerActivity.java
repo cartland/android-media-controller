@@ -16,6 +16,7 @@
 package com.example.android.mediacontroller;
 
 import android.app.Activity;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -24,12 +25,14 @@ import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.media.AudioManager;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.RemoteException;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.TabLayout;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.graphics.drawable.DrawableCompat;
 import android.support.v4.media.MediaBrowserServiceCompat;
@@ -598,11 +601,35 @@ public class MediaAppControllerActivity extends AppCompatActivity {
     }
 
     final MediaControllerCompat.Callback mCallback = new MediaControllerCompat.Callback() {
+
+        private long mPreviousActions = -1L;
+
         @Override
         public void onPlaybackStateChanged(PlaybackStateCompat playbackState) {
             onUpdate();
             if (playbackState != null) {
                 showActions(playbackState.getActions());
+
+                long actions = playbackState.getActions();
+                int mNotificationId = 001;
+                NotificationManager notificationManager =
+                        (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                if (mPreviousActions != actions || true) {
+                    Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                    NotificationCompat.Builder mBuilder =
+                            new NotificationCompat.Builder(MediaAppControllerActivity.this, "Alert")
+                                    .setSmallIcon(R.drawable.dark_circle_background)
+                                    .setPriority(NotificationCompat.PRIORITY_MAX)
+                                    .setSound(alarmSound)
+                                    .setContentTitle("Actions: " + String.format("0x%08X", actions));
+                    if (mPreviousActions != -1) {
+                        mBuilder.setContentText("Previous: " + String.format("0x%08X", mPreviousActions));
+                    }
+                    Log.i(TAG, "Actions: " + String.format("0x%08X", actions));
+                    MediaAppControllerActivity.this.logActions(actions);
+                    notificationManager.notify(mNotificationId, mBuilder.build());
+                }
+                mPreviousActions = actions;
             }
         }
 
@@ -618,6 +645,87 @@ public class MediaAppControllerActivity extends AppCompatActivity {
             }
         }
     };
+
+
+    private void logActions(long actions) {
+        Map<String, String> mediaInfos = new HashMap<>();
+
+        if ((actions & PlaybackStateCompat.ACTION_PREPARE_FROM_SEARCH) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_PREPARE_FROM_SEARCH", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_PLAY_FROM_SEARCH", "Supported");
+        }
+
+        if ((actions & PlaybackStateCompat.ACTION_PREPARE_FROM_MEDIA_ID) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_PREPARE_FROM_MEDIA_ID", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_PLAY_FROM_MEDIA_ID", "Supported");
+        }
+
+        if ((actions & PlaybackStateCompat.ACTION_PREPARE_FROM_URI) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_PREPARE_FROM_URI", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_PLAY_FROM_URI) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_PLAY_FROM_URI", "Supported");
+        }
+
+        if ((actions & PlaybackStateCompat.ACTION_PREPARE) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_PREPARE", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_PLAY) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_PLAY", "Supported");
+        }
+
+        if ((actions & PlaybackStateCompat.ACTION_STOP) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_STOP", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_PAUSE) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_PAUSE", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_FAST_FORWARD) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_FAST_FORWARD", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_REWIND) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_REWIND", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_SEEK_TO) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_SEEK_TO", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_SET_CAPTIONING_ENABLED) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_SET_CAPTIONING_ENABLED", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_SET_RATING) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_SET_RATING", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_SET_REPEAT_MODE) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_SET_REPEAT_MODE", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE_ENABLED) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_SET_SHUFFLE_MODE_ENABLED (deprecated)", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_SET_SHUFFLE_MODE", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_SKIP_TO_NEXT) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_SKIP_TO_NEXT", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_SKIP_TO_PREVIOUS", "Supported");
+        }
+        if ((actions & PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM) != 0) {
+            addMediaInfo(mediaInfos, "ACTION_SKIP_TO_QUEUE_ITEM", "Supported");
+        }
+
+        final List<String> sortedKeys = new ArrayList<>();
+        sortedKeys.addAll(mediaInfos.keySet());
+        Collections.sort(sortedKeys, new KeyComparator());
+
+        for (final String key : sortedKeys) {
+            Log.i(TAG, " + " + key);
+        }
+    }
 
     private void showToastAndFinish(String message) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
